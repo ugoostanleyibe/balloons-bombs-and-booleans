@@ -1,65 +1,80 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlayerControllerX : MonoBehaviour
 {
-    public bool gameOver;
+	public bool isGameOver;
+	public bool isLowEnough;
 
-    public float floatForce;
-    private float gravityModifier = 1.5f;
-    private Rigidbody playerRb;
+	public float floatForce;
 
-    public ParticleSystem explosionParticle;
-    public ParticleSystem fireworksParticle;
+	private readonly float gravityModifier = 1.5f;
+	private readonly float upperCeiling = 14.5f;
 
-    private AudioSource playerAudio;
-    public AudioClip moneySound;
-    public AudioClip explodeSound;
+	public ParticleSystem explosionParticle;
+	public ParticleSystem fireworksParticle;
+	public AudioClip explodeSound;
+	public AudioClip bounceSound;
+	public AudioClip moneySound;
 
+	private AudioSource playerAudio;
+	private Rigidbody playerRb;
 
-    // Start is called before the first frame update
-    void Start()
-    {
-        Physics.gravity *= gravityModifier;
-        playerAudio = GetComponent<AudioSource>();
+	// Start is called before the first frame update
+	void Start()
+	{
+		Physics.gravity *= gravityModifier;
+		playerAudio = GetComponent<AudioSource>();
+		playerRb = GetComponent<Rigidbody>();
 
-        // Apply a small upward force at the start of the game
-        playerRb.AddForce(Vector3.up * 5, ForceMode.Impulse);
+		// Apply a small upward force at the start of the game
+		playerRb.AddForce(Vector3.up * 5.0f, ForceMode.Impulse);
+	}
 
-    }
+	// Update is called once per frame
+	void Update()
+	{
+		isLowEnough = transform.position.y < upperCeiling;
 
-    // Update is called once per frame
-    void Update()
-    {
-        // While space is pressed and player is low enough, float up
-        if (Input.GetKey(KeyCode.Space) && !gameOver)
-        {
-            playerRb.AddForce(Vector3.up * floatForce);
-        }
-    }
+		// While space is pressed and player is low enough, float up
+		if (Input.GetKey(KeyCode.Space) && isLowEnough && !isGameOver)
+		{
+			playerRb.AddForce(Vector3.up * floatForce);
 
-    private void OnCollisionEnter(Collision other)
-    {
-        // if player collides with bomb, explode and set gameOver to true
-        if (other.gameObject.CompareTag("Bomb"))
-        {
-            explosionParticle.Play();
-            playerAudio.PlayOneShot(explodeSound, 1.0f);
-            gameOver = true;
-            Debug.Log("Game Over!");
-            Destroy(other.gameObject);
-        } 
+		}
+		else if (!isLowEnough)
+		{
+			playerRb.AddForce(Vector3.down * floatForce);
+			playerRb.velocity = Vector3.zero;
+		}
+	}
 
-        // if player collides with money, fireworks
-        else if (other.gameObject.CompareTag("Money"))
-        {
-            fireworksParticle.Play();
-            playerAudio.PlayOneShot(moneySound, 1.0f);
-            Destroy(other.gameObject);
+	private void DestroyPlayer() => Destroy(gameObject);
 
-        }
+	private void OnCollisionEnter(Collision other)
+	{
+		// if player collides with bomb, explode and set gameOver to true
+		if (other.gameObject.CompareTag("Bomb"))
+		{
+			playerAudio.PlayOneShot(explodeSound);
+			Invoke(nameof(DestroyPlayer), 1.0f);
+			Destroy(other.gameObject);
+			explosionParticle.Play();
+			Debug.Log("Game Over!");
+			isGameOver = true;
+		}
 
-    }
+		// if player collides with money, fireworks
+		else if (other.gameObject.CompareTag("Money"))
+		{
+			playerAudio.PlayOneShot(moneySound);
+			Destroy(other.gameObject);
+			fireworksParticle.Play();
+		}
 
+		// if player collides with ground, bounce
+		else if (other.gameObject.CompareTag("Ground"))
+		{
+			playerRb.AddForce(Vector3.up * 7.0f, ForceMode.Impulse);
+		}
+	}
 }
